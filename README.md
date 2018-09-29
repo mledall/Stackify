@@ -1,0 +1,1 @@
+This repository collects the scripts that go into making a Stackifier, which wikifies Stackoverflow. More specifically, it provides links to relevant keywords in a question or answer on stackoverflow.
