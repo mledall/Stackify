@@ -10,9 +10,29 @@ from mpl_toolkits.mplot3d import Axes3D
 
 import seaborn as sns
 
+from Data_processing import semantic_distance_to_other
+
 data = pickle.load(open('Stack_api_data_processed.pkl', "rb" ))
 
-#print(data.loc[0, 'w2v'])
+def semantic_distance_to_avg(index):
+	distance_to_avg = []
+	for word, distance in data.loc[index, 'relevant keywords']:
+		distance_to_avg.append([word, distance])
+	distance_to_avg_df = pd.DataFrame(distance_to_avg, columns = ['keyword','cosine similarity'])
+	ax = sns.barplot(x='keyword', y='cosine similarity', data=distance_to_avg_df)
+	plt.xticks(rotation=45)
+	plt.show()
+#semantic_distance_to_avg(0)
+
+def semantic_distance_to_other_articles(keyword):
+	distance_to_other = list(semantic_distance_to_other(keyword)[:10])
+	distance_to_other_df = pd.DataFrame(distance_to_other, columns = ['question id', 'cosine similarity'])
+	ax = sns.barplot(x='question id', y='cosine similarity', data=distance_to_other_df)
+	plt.xticks(rotation=45)
+	plt.show()
+top_keyword = data.loc[0, 'relevant keywords'][0][0]
+semantic_distance_to_other_articles(top_keyword)
+
 
 def pca_field_clustering(n_components):	# This function clusters the articles
 	X = list(data.loc[:,'w2v'])
@@ -91,7 +111,7 @@ def kmeans_wordvsavg_clustering():
 	plt.show()
 #	print(kmeansdata)
 
-kmeans_wordvsavg_clustering()
+#kmeans_wordvsavg_clustering()
 
 
 
