@@ -9,15 +9,22 @@ from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from Data_overflow_processing import semantic_distance_to_other
+#from Data_overflow_processing import semantic_distance_to_other
 from text_graph import get_graph
 
 from gensim.summarization import keywords, graph
 import networkx as nx
 
-data = pickle.load(open('iterative_scraping_Stackoverflow_processed.pkl', "rb" ))
 
-def graphing_text(text):
+data = pickle.load(open('iterative_scraping_Stackoverflow_processed.pkl', "rb" ))
+link = 'https://stackoverflow.com/questions/276761/exposing-a-c-api-to-python'
+index = list(data[data.loc[:, 'link'] == link].index)[0]
+question_id = data[data.loc[:, 'link'] == link]['id'].values[0]
+field = data[data.loc[:, 'link'] == link]['field'].values[0]
+
+
+def graphing_text():
+	text = data.loc[index, 'mushed']
 	G = get_graph(text)
 	nodes = G.nodes()
 	edges = G.edges()
@@ -27,27 +34,66 @@ def graphing_text(text):
 	for edge in edges:
 		g.add_edge(edge[0], edge[1])
 	pos=nx.spring_layout(g)
-	nx.draw_networkx_edges(g,pos, width=2)
-	nx.draw_networkx_nodes(g,pos,node_size=100)
-	nx.draw_networkx_labels(g,pos,font_size=15,font_family='sans-serif')
+	pos_adjust = {}
+	for key in pos:
+#		radius = np.linalg.norm(pos[key])
+		pos_adjust[key] = pos[key]*1.1
+	nx.draw_networkx_edges(g,pos, width=0.5)
+	nx.draw_networkx_nodes(g,pos,node_size=50)
+	nx.draw_networkx_labels(g,pos_adjust,font_size=15,font_family='sans-serif')
 	plt.axis('off')
+#	plt.savefig('text_graph.png')
+	plt.tight_layout()
+	plt.gcf().subplots_adjust(bottom=0.15)
 	plt.show()
 
-text = 'Challenges in natural language processing frequently involve speech recognition, natural language understanding, natural language generation (frequently from formal, machine-readable logical forms), connecting language and machine perception, dialog systems, or some combination thereof.'
-
-graphing_text(text)
-
-def semantic_distance_to_avg(index):
-	distance_to_avg = []
-	for word, distance in data.loc[index, 'relevant keywords']:
-		distance_to_avg.append([word, distance])
-	distance_to_avg_df = pd.DataFrame(distance_to_avg, columns = ['keyword','cosine similarity'])
-	ax = sns.barplot(x='cosine similarity', y='keyword', data=distance_to_avg_df)
+def keyword_ranking():
+	keyword_list = data.loc[index, 'keywords w2v']
+	keyword_df = pd.DataFrame(keyword_list, columns = ['keyword', 'score', 'word vec'])
+	sns.barplot(x = 'score', y = 'keyword', data = keyword_df)
+	plt.title('TextRank score: ranking of words')
+#	plt.savefig('top_keywords.png')
 	plt.show()
-#semantic_distance_to_avg(0)
 
-def semantic_distance_to_other_articles(keyword, question_id, field):
-	distance_to_other = semantic_distance_to_other(keyword, field, question_id, data)
+#keyword_ranking()
+#graphing_text()
+
+def semantic_distance(vec1, vec2):
+    cosine_similarity = np.dot(vec1, vec2)/(np.linalg.norm(vec1)* np.linalg.norm(vec2))
+    return cosine_similarity
+
+def most_relevant_article(keyword_vec, data):
+	dummy_list = []
+	for i in range(len(data)):
+		w2v_average = data.loc[i, 'average w2v']
+		if type(w2v_average) != int:
+			w2v_distance = semantic_distance(keyword_vec, w2v_average)
+			dummy_list.append([data.loc[i, 'id'], data.loc[i, 'link'], w2v_distance])
+	return sorted(dummy_list, key=lambda distance: distance[-1], reverse = True)[:10]
+
+def keyword_vectors(index):
+	keyword_dict = {}
+	for word in data.loc[index, 'keywords w2v']:
+		keyword = word[0]
+		keyword_w2v = word[-1]
+		keyword_dict[keyword] = keyword_w2v	
+	return keyword_dict
+
+def semantic_distance_to_other(question_id, field):
+	index = list(data[data.loc[:, 'id'] == question_id].index)[0]
+	other_articles = data[data.loc[:, 'id'] != question_id]
+	other_articles_field = other_articles[other_articles.loc[:, 'field'] == field].reset_index()
+	n_other_articles = len(other_articles_field)
+	keyword_vecs = keyword_vectors(index)
+	keyword_article_distance = {}
+	for key in keyword_vecs:
+		keyword_vec = keyword_vecs[key]
+		relevant_article = most_relevant_article(keyword_vec, other_articles_field)
+		keyword_article_distance[key] = relevant_article
+	return keyword_article_distance
+
+def plot_relevant_articles(question_id, field):
+	distance_to_other = semantic_distance_to_other(question_id, field)
 	vector = []
 	it = 0
 	for cos in distance_to_other.loc[:, 'cosine similarity']:
@@ -60,7 +106,7 @@ def semantic_distance_to_other_articles(keyword, question_id, field):
 #top_keyword = data.loc[0, 'relevant keywords'][0][0]
 #field = data.loc[0, 'field']
 #idx = data.loc[0, 'id']
-#semantic_distance_to_other_articles(top_keyword, idx, field)
+#semantic_distance_to_other_articles(question_id, field)
 
 
 def pca_type_clustering(n_components):	# This function clusters the articles

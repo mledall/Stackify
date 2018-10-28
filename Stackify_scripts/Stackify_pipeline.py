@@ -13,57 +13,64 @@ import pickle
 import numpy as np
 from bs4 import BeautifulSoup
 
-from Data_overflow_processing import semantic_distance_to_other
-
-
 data = pickle.load(open('iterative_scraping_Stackoverflow_processed.pkl', "rb" ))
 raw_data = pickle.load(open('iterative_scraping_Stackoverflow.pkl', "rb" ))
 
-ex_link = 'https://stackoverflow.com/questions/3496592/conditional-import-of-modules-in-python'
-
-
 def user_input(link):
 	index = list(raw_data[raw_data.loc[:, 'link'] == link].index)[0]
+	question_id = raw_data.loc[index,'id']
 	title = BeautifulSoup(raw_data.loc[index,'title'], 'html.parser').get_text()
 	body = BeautifulSoup(raw_data.loc[index,'body'], 'html.parser').get_text()
 	field = raw_data.loc[index,'field']
-	question_id = raw_data.loc[index,'id']
-	return title, body, field, question_id
+	return index, question_id, title, body, field
 
-def get_keywords(link):
-	question_id = user_input(link)[-1]
+def semantic_distance(vec1, vec2):
+    cosine_similarity = np.dot(vec1, vec2)/(np.linalg.norm(vec1)* np.linalg.norm(vec2))
+    return cosine_similarity
+
+def most_relevant_article(keyword_vec, data):
+	dummy_list = []
+	for i in range(len(data)):
+		w2v_average = data.loc[i, 'average w2v']
+		if type(w2v_average) != int:
+			w2v_distance = semantic_distance(keyword_vec, w2v_average)
+			dummy_list.append([data.loc[i, 'id'], data.loc[i, 'link'], w2v_distance])
+	return sorted(dummy_list, key=lambda distance: distance[-1], reverse = True)[:3]
+
+def keyword_vectors(index):
+	keyword_dict = {}
+	for word in data.loc[index, 'keywords w2v']:
+		keyword = word[0]
+		keyword_w2v = word[-1]
+		keyword_dict[keyword] = keyword_w2v	
+	return keyword_dict
+
+def semantic_distance_to_other(question_id, field):
 	index = list(data[data.loc[:, 'id'] == question_id].index)[0]
-	keywords = data.loc[index, 'keywords']
-	relevant_keywords = []
-	for keyword, distance in data.loc[index, 'relevant keywords']:
-		relevant_keywords.append(keyword)
-	return keywords, relevant_keywords, index
-
+	other_articles = data[data.loc[:, 'id'] != question_id]
+	other_articles_field = other_articles[other_articles.loc[:, 'field'] == field].reset_index()
+	n_other_articles = len(other_articles_field)
+	keyword_vecs = keyword_vectors(index)
+	keyword_article_distance = {}
+	for key in keyword_vecs:
+		keyword_vec = keyword_vecs[key]
+		relevant_article = most_relevant_article(keyword_vec, other_articles_field)
+		keyword_article_distance[key] = relevant_article
+	return keyword_article_distance
 
 def main_function(link):
-	title, body, field, question_id = user_input(link)
-	relevant_keywords = get_keywords(link)[1]
-	index = get_keywords(link)[-1]
-	reference_list = []
-	for keyword in relevant_keywords:
-		recommend = semantic_distance_to_other(keyword, field, question_id, data)
-		reference_id = recommend.loc[0,'id']
-		reference_score = recommend.loc[0,'cosine similarity']
-		reference_link = data.loc[np.where(data.loc[:,'id'] == reference_id)[0][0], 'link']
-		print('Keyword {} to link {} with reference score {}\n'.format(keyword, reference_link, reference_score))
-		reference_list.append((keyword, reference_id, reference_link, reference_score))
-	return reference_list
+	index, question_id, title, body, field = user_input(link)
+	relevant_keywords = semantic_distance_to_other(question_id, field)
+	for key in relevant_keywords:
+		print('{}:\n'.format(key))
+		for keyword in relevant_keywords[key]:
+			reference_link = keyword[1]
+			reference_score = keyword[2]
+			print(' - {}'.format(reference_link))
+		print('\n')
 
-#print(list(data[data.loc[:, 'link'] == ex_link].index)[0])
-#print(data[data.loc[:, 'field'] == 'python']['link'][1])
-
-main_function(ex_link)
-
-
-
-
-
-
+#link = 'https://stackoverflow.com/questions/276761/exposing-a-c-api-to-python'
+#main_function(link)
 
 
 
