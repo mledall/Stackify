@@ -27,11 +27,11 @@ import networkx as nx
 data = pickle.load(open('iterative_scraping_Stackoverflow_processed.pkl', "rb" ))
 link = 'https://stackoverflow.com/questions/276761/exposing-a-c-api-to-python'
 
-index, question_id, title, body, field = user_input(link)
-
-text = data.loc[index, 'mushed']
+question_id, title, body, field = user_input(link)[1:]
+index = list(data[data.loc[:, 'link'] == link].index)[0]
 
 def graphing_text():
+	text = data.loc[index, 'mushed']
 	G = get_graph(text)
 	nodes = G.nodes()
 	edges = G.edges()
