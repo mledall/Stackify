@@ -1,6 +1,18 @@
-import pandas as pd
-#pd.options.display.float_format = '{:.4f}'.format
+'''
+This function takes the raw data and processes it. For each of the questions, this includes:
+- Cleans the question text by removing stop words from the text, tokenizing, lemmatizing the words.
 
+- Blends the question body and title together,
+
+- Extracts the keywords from the text using TextRank
+
+- Calculates the word vector for each keyword based on the word2vec vector embedding
+
+- Calculates the average vector for each questions by average the word vectors of the keywords of the text.
+ 
+'''
+
+import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
 import re
@@ -10,8 +22,6 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.corpus import words
 from nltk.corpus import wordnet as wn
-#nltk.download('wordnet')
-#nltk.download('stopwords')
 from nltk.stem.wordnet import WordNetLemmatizer
 en_stop = set(nltk.corpus.stopwords.words('english'))
 
@@ -26,7 +36,10 @@ from gensim.summarization import keywords
 spacy.load('en')
 parser = English()
 
-def remove_html_stop(text):		# Removes the HTML, punctuation, numbers, stopwords...
+def remove_html_stop(text):
+	'''
+	removes stop words and html text
+	'''
     rm_html = BeautifulSoup(text, 'html.parser').get_text()	# removes html
     letters_only = re.sub("[^a-zA-Z]",           	# The pattern to search for; ^ means NOT
                           " ",                   	# The pattern to replace it with
@@ -40,7 +53,10 @@ def remove_html_stop(text):		# Removes the HTML, punctuation, numbers, stopwords
     meaningful_words = [w for w in words if not w in stops]	# Remove stop words from "words"
     return ' '.join(meaningful_words)			# Joins the words back together separated by
 
-def tokenize(text): # the Tokenize function takes a text and splits it into its words
+def tokenize(text):
+	'''
+	tokenizes the text
+	'''
     lda_tokens = []
     tokens = parser(text)
     for token in tokens:
@@ -55,16 +71,19 @@ def tokenize(text): # the Tokenize function takes a text and splits it into its 
     return lda_tokens
 
 def get_lemma(word):
+	'''
+	lemmatizes the words
+	'''
     lemma = wn.morphy(word)
     if lemma is None:
         return word
     else:
         return lemma
 
-def get_lemma2(word):
-    return WordNetLemmatizer().lemmatize(word)
-
 def prepare_text(text):
+	'''
+	combines the tokenizing and lemmatizing steps
+	'''
     tokens = tokenize(text)
     tokens = [token for token in tokens if len(token) > 2]
     tokens = [token for token in tokens if token not in en_stop]
@@ -74,16 +93,22 @@ def prepare_text(text):
     return tokened_text
 
 def clean_text(text):
+	'''
+	combines the stop word removal to the lemmatizing steps
+	'''
     remove_stops = remove_html_stop(text)
     tokenized = prepare_text(remove_stops)
     return tokenized
 
 def loading_w2v_model():
+	'''
+	Loads a pre-trained word2vec model on 1 billion news articles, trained by Google.
+	'''
 	print('load the w2v model')
 	return pickle.load(open("word2vec_model.pkl", "rb" ))
 
 def one_keyword_w2v(keyword):
-	''' Function that calculates the word vector for a given keyword. If the keyword is made of two words that do not belong to the w2v dictionary, the script splits the keywords in individual words and sums the word vectors.'''
+	'''Calculates the word vector for one keyword. If the keyword is made of more than one word than belong to the w2v dictionary, the script splits the keywords in individual words and sums the word vectors. If the keyword does not belong to the w2v dictionary, the function ignores the keyword.'''
 	keyword_split = keyword.split(' ')
 	word_sum = []
 	for i in range(len(keyword_split)):
@@ -93,7 +118,7 @@ def one_keyword_w2v(keyword):
 	return word_sum
 
 def many_keywords_w2v(text):	
-	'''This function takes a paragraph as input and calculates all of the keywords, their scores, and their word vectors.'''
+	'''Iterates over the words in one question: extracts the keywords, their scores, and their word vectors.'''
 	keyword_list = keywords(text, ratio=0.2, words=None, split=False, scores=True, pos_filter=None, lemmatize=True, deacc=True)
 	keyword_list_w2v = []
 	for keyword ,score in keyword_list:
@@ -103,6 +128,9 @@ def many_keywords_w2v(text):
 	return keyword_list_w2v
 
 def averaging_w2v(list_keyword_w2v):
+	'''
+	Averages the keyword vectors into one question average vector.
+	'''
 	average = []
 	N = len(list_keyword_w2v)
 	for keyword_w2v in list_keyword_w2v:
@@ -113,6 +141,9 @@ def averaging_w2v(list_keyword_w2v):
 	return average
 
 def cleaning_the_data():
+	'''
+	Processing the whole data base by iterating over each question
+	'''
 	mushed_vec = []
 	keyword_w2v_vec = []
 	average_w2v_vec = []
@@ -132,6 +163,9 @@ def cleaning_the_data():
 	data['average w2v'] = average_w2v_vec
 
 def data_processor():
+	'''
+	processes the data and pickles it
+	'''
 	print('cleaning the data')
 	cleaning_the_data()
 	print('randomizes the data')
