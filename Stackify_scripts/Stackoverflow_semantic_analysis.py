@@ -1,3 +1,11 @@
+'''
+This scripts collects a number of plotting functions in order to understand our data and the workings of our algorithm
+
+- graph out of the text
+- ranking of the keywords based on TextRank score
+- ranking of the articles based on the word2vec semantic similarity score
+'''
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -9,7 +17,7 @@ from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-#from Data_overflow_processing import semantic_distance_to_other
+from Stackify_pipeline import user_input
 from text_graph import get_graph
 
 from gensim.summarization import keywords, graph
@@ -18,13 +26,12 @@ import networkx as nx
 
 data = pickle.load(open('iterative_scraping_Stackoverflow_processed.pkl', "rb" ))
 link = 'https://stackoverflow.com/questions/276761/exposing-a-c-api-to-python'
-index = list(data[data.loc[:, 'link'] == link].index)[0]
-question_id = data[data.loc[:, 'link'] == link]['id'].values[0]
-field = data[data.loc[:, 'link'] == link]['field'].values[0]
 
+index, question_id, title, body, field = user_input(link)
+
+text = data.loc[index, 'mushed']
 
 def graphing_text():
-	text = data.loc[index, 'mushed']
 	G = get_graph(text)
 	nodes = G.nodes()
 	edges = G.edges()
@@ -47,6 +54,8 @@ def graphing_text():
 	plt.gcf().subplots_adjust(bottom=0.15)
 	plt.show()
 
+#graphing_text()
+
 def keyword_ranking():
 	keyword_list = data.loc[index, 'keywords w2v']
 	keyword_df = pd.DataFrame(keyword_list, columns = ['keyword', 'score', 'word vec'])
@@ -55,8 +64,7 @@ def keyword_ranking():
 #	plt.savefig('top_keywords.png')
 	plt.show()
 
-#keyword_ranking()
-#graphing_text()
+keyword_ranking()
 
 def semantic_distance(vec1, vec2):
     cosine_similarity = np.dot(vec1, vec2)/(np.linalg.norm(vec1)* np.linalg.norm(vec2))
