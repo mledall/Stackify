@@ -40,65 +40,65 @@ def remove_html_stop(text):
 	'''
 	removes stop words and html text
 	'''
-    rm_html = BeautifulSoup(text, 'html.parser').get_text()	# removes html
-    letters_only = re.sub("[^a-zA-Z]",           	# The pattern to search for; ^ means NOT
-                          " ",                   	# The pattern to replace it with
-                          rm_html )              	# The text to search
-    lower_case = letters_only.lower()	         	# Convert to lower case
-    words = lower_case.split()          	     	# Split into words
-    stops = stopwords.words("english")
-    stops.append('ve')
-    stops = set(stops)
-    #english_words = words.words()[1:100]
-    meaningful_words = [w for w in words if not w in stops]	# Remove stop words from "words"
-    return ' '.join(meaningful_words)			# Joins the words back together separated by
+	rm_html = BeautifulSoup(text, 'html.parser').get_text()	# removes html
+	letters_only = re.sub("[^a-zA-Z]",           	# The pattern to search for; ^ means NOT
+		                  " ",                   	# The pattern to replace it with
+		                  rm_html )              	# The text to search
+	lower_case = letters_only.lower()	         	# Convert to lower case
+	words = lower_case.split()          	     	# Split into words
+	stops = stopwords.words("english")
+	stops.append('ve')
+	stops = set(stops)
+	#english_words = words.words()[1:100]
+	meaningful_words = [w for w in words if not w in stops]	# Remove stop words from "words"
+	return ' '.join(meaningful_words)			# Joins the words back together separated by
 
 def tokenize(text):
 	'''
 	tokenizes the text
 	'''
-    lda_tokens = []
-    tokens = parser(text)
-    for token in tokens:
-        if token.orth_.isspace():
-            continue
-        elif token.like_url:
-            lda_tokens.append('URL')
-        elif token.orth_.startswith('@'):
-            lda_tokens.append('SCREEN_NAME')
-        else:
-            lda_tokens.append(token.lower_)
-    return lda_tokens
+	lda_tokens = []
+	tokens = parser(text)
+	for token in tokens:
+		if token.orth_.isspace():
+		    continue
+		elif token.like_url:
+		    lda_tokens.append('URL')
+		elif token.orth_.startswith('@'):
+		    lda_tokens.append('SCREEN_NAME')
+		else:
+		    lda_tokens.append(token.lower_)
+	return lda_tokens
 
 def get_lemma(word):
 	'''
 	lemmatizes the words
 	'''
-    lemma = wn.morphy(word)
-    if lemma is None:
-        return word
-    else:
-        return lemma
+	lemma = wn.morphy(word)
+	if lemma is None:
+		return word
+	else:
+		return lemma
 
 def prepare_text(text):
 	'''
 	combines the tokenizing and lemmatizing steps
 	'''
-    tokens = tokenize(text)
-    tokens = [token for token in tokens if len(token) > 2]
-    tokens = [token for token in tokens if token not in en_stop]
-    tokens = [get_lemma(token) for token in tokens]
-    tokened_text = [token for token in tokens]
-    tokened_text = ' '.join(tokened_text)
-    return tokened_text
+	tokens = tokenize(text)
+	tokens = [token for token in tokens if len(token) > 2]
+	tokens = [token for token in tokens if token not in en_stop]
+	tokens = [get_lemma(token) for token in tokens]
+	tokened_text = [token for token in tokens]
+	tokened_text = ' '.join(tokened_text)
+	return tokened_text
 
 def clean_text(text):
 	'''
 	combines the stop word removal to the lemmatizing steps
 	'''
-    remove_stops = remove_html_stop(text)
-    tokenized = prepare_text(remove_stops)
-    return tokenized
+	remove_stops = remove_html_stop(text)
+	tokenized = prepare_text(remove_stops)
+	return tokenized
 
 def loading_w2v_model():
 	'''
